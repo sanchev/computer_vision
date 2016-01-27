@@ -15,19 +15,22 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
-import org.opencv.objdetect.HOGDescriptor;
 import org.opencv.objdetect.Objdetect;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     private CascadeClassifier faceCascadeTwo;
     private int currentCameraIngex = -1;
     private boolean isCurrentCameraFront = false;
+    private Mat smile;
 
     AssetManager assetManager;
 
@@ -89,6 +93,12 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         mOpenCvCameraView.setCameraIndex(currentCameraIngex);
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
         mOpenCvCameraView.setCvCameraViewListener(this);
+
+        try {
+            smile = Utils.loadResource(this, R.drawable.emoji, CvType.CV_16S);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void checkIsCurrentCameraFront() {
@@ -127,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     }
 
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        Mat result = inputFrame.rgba();
+       /* Mat result = inputFrame.rgba();
         //зеркальное отоброжение входного кадра
         if (isCurrentCameraFront)
             Core.flip(result, result, 1);
@@ -145,12 +155,15 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             }
         }
 
+
         MatOfRect faces = new MatOfRect();
         faceCascadeOne.detectMultiScale(grayFrame, faces, 1.1, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new Size(this.absoluteFaceSize, this.absoluteFaceSize), new Size());
 
+        /*
         MatOfRect mouths = new MatOfRect();
         faceCascadeTwo.detectMultiScale(grayFrame, mouths, 1.1, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new Size(this.absoluteFaceSize, this.absoluteFaceSize), new Size());
-
+*/
+/*
         Rect[] facesArray = faces.toArray();
         for (int i = 0; i < facesArray.length; i++) {
             Rect rect = facesArray[i];
@@ -160,8 +173,14 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             double circleCenterY = rect.y + circleRadius;
             Point circleCenter = new Point(circleCenterX, circleCenterY);
             Imgproc.circle(result, circleCenter, circleRadius, new Scalar(0, 255, 0, 255), 3);
+
+            Size size = new Size(rect.width, rect.height);
+            Mat resizedSmile = new Mat();
+            Imgproc.resize(smile, resizedSmile, size);
+            resizedSmile.copyTo(result.row(rect.y).col(rect.x));
         }
 
+        /*
         Rect[] mouthsArray = mouths.toArray();
         for (int i = 0; i < mouthsArray.length; i++){
             Rect rect = mouthsArray[i];
@@ -174,7 +193,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         }
 
 
-        return result;
+*/
+        return smile;
+  //      return result;
     }
 
     private CascadeClassifier newCascadeClassifier (String file) {
@@ -207,5 +228,13 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             Log.e("SANCV", "Failed to load cascade. Exception thrown: " + e);
         }
         return null;
+    }
+
+    private Mat openFile(String fileName) throws FileNotFoundException {
+        Mat result = Imgcodecs.imread(fileName);
+        if (result.dataAddr() == 0) {
+            throw new FileNotFoundException("Couldn't open file " + fileName);
+        }
+        return result;
     }
 }
