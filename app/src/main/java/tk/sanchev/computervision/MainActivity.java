@@ -93,6 +93,16 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         matMask = new Mat(bitmapMask.getWidth(), bitmapMask.getHeight(), CvType.CV_8UC3);
         Utils.bitmapToMat(bitmapMask, matMask);
         //Инициализация EMOJI END
+
+        //Сделать фото START
+        FloatingActionButton photo = (FloatingActionButton) findViewById(R.id.photo);
+        photo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //реализовать снимок
+            }
+        });
+        //Сделать фото END
     }
 
     private void checkIsCurrentCameraFront() {
