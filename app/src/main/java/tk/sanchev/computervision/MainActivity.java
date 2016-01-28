@@ -1,6 +1,7 @@
 package tk.sanchev.computervision;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.WindowManager;
@@ -9,56 +10,55 @@ import android.widget.ImageView;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.IOException;
-
 public class MainActivity extends AppCompatActivity{
-    private Mat smile;
-
-    private final String[] inputModes = {
-            "CV_8U", "CV_8UC1", "CV_8UC2", "CV_8UC3", "CV_8UC4",
-            "CV_8S", "CV_8SC1", "CV_8SC2", "CV_8SC3", "CV_8SC4",
-            "CV_16U", "CV_16UC1", "CV_16UC2", "CV_16UC3", "CV_16UC4",
-            "CV_16S", "CV_16SC1", "CV_16SC2", "CV_16SC3", "CV_16SC4",
-            "CV_32S", "CV_32SC1", "CV_32SC2", "CV_32SC3", "CV_32SC4",
-            "CV_32F", "CV_32FC1", "CV_32FC2", "CV_32FC3", "CV_32FC4",
-            "CV_64F", "CV_64FC1", "CV_64FC2", "CV_64FC3", "CV_64FC4",
-            "CV_USRTYPE1"};
 
     static {
         System.loadLibrary("opencv_java3");
     }
 
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.activity_main);
 
-        ImageView ivOCV1 = ((ImageView) findViewById(R.id.ivOCV1));
-        ImageView ivOCV2 = (ImageView) findViewById(R.id.ivOCV2);
-        ImageView ivOCV3 = (ImageView) findViewById(R.id.ivOCV3);
-        ImageView ivOCV4 = (ImageView) findViewById(R.id.ivOCV4);
+        ImageView ivEmoji = ((ImageView) findViewById(R.id.ivEmoji));
+        ImageView ivResult = ((ImageView) findViewById(R.id.ivResult));
+        ImageView ivBackground = ((ImageView) findViewById(R.id.ivBackground));
 
-        Mat mRgba = null;
-        try {
-            mRgba = Utils.loadResource(this, R.drawable.emoji, CvType.CV_8UC3);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Bitmap bitmapEmoji = BitmapFactory.decodeResource(getResources(), R.drawable.emoji2);
+        Bitmap bitmapMask = BitmapFactory.decodeResource(getResources(), R.drawable.mask);
+        Bitmap bitmapBackground = BitmapFactory.decodeResource(getResources(), R.drawable.background);
 
-        Bitmap bm1 = Bitmap.createBitmap(mRgba.cols(), mRgba.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(mRgba, bm1);
-        ivOCV1.setImageBitmap(bm1);
+        ivEmoji.setImageBitmap(bitmapEmoji);
+        ivBackground.setImageBitmap(bitmapBackground);
 
-        Bitmap bm2 = Bitmap.createBitmap(mRgba.cols(), mRgba.rows(), Bitmap.Config.ARGB_4444);
-        Utils.matToBitmap(mRgba, bm2);
-        ivOCV2.setImageBitmap(bm2);
+        Mat matEmoji = new Mat(bitmapEmoji.getWidth(), bitmapEmoji.getHeight(), CvType.CV_8UC3);
+        Utils.bitmapToMat(bitmapEmoji, matEmoji);
 
-        Bitmap bm3 = Bitmap.createBitmap(mRgba.cols(), mRgba.rows(), Bitmap.Config.RGB_565);
-        Utils.matToBitmap(mRgba, bm3);
-        ivOCV3.setImageBitmap(bm3);
+        Mat matMask = new Mat(bitmapMask.getWidth(), bitmapMask.getHeight(), CvType.CV_8UC3);
+        Utils.bitmapToMat(bitmapMask, matMask);
+
+        Mat matBackground = new Mat(bitmapBackground.getWidth(), bitmapBackground.getHeight(), CvType.CV_8UC3);
+        Utils.bitmapToMat(bitmapBackground, matBackground);
+
+        Mat matResult = new Mat(matBackground.rows(), matBackground.cols(), matBackground.type());
+        matBackground.copyTo(matResult);
+
+        Mat submat = matResult.submat(0, 100, 0, 100);
+        Size size = submat.size();
+        Mat resizedEmoji = new Mat();
+        Imgproc.resize(matEmoji, resizedEmoji, size);
+        Mat resizedMask = new Mat();
+        Imgproc.resize(matMask, resizedMask, size);
+        resizedEmoji.copyTo(submat, resizedMask);
+
+        Bitmap bitmapResult = Bitmap.createBitmap(matResult.cols(), matResult.rows(),Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(matResult, bitmapResult);
+
+        ivResult.setImageBitmap(bitmapResult);
     }
 }

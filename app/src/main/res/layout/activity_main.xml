@@ -5,30 +5,30 @@
     android:fitsSystemWindows="true">
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:gravity="center">
 
         <ImageView
-            android:id="@+id/ivOCV1"
-            android:layout_weight="1"
+            android:id="@+id/ivEmoji"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
+
         <ImageView
-            android:id="@+id/ivOCV2"
-            android:layout_weight="1"
+            android:id="@+id/ivResult"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
+
         <ImageView
-            android:id="@+id/ivOCV3"
-            android:layout_weight="1"
+            android:id="@+id/ivBackground"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-        <ImageView
-            android:id="@+id/ivOCV4"
-            android:layout_weight="1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
     </LinearLayout>
+
+
 
 </android.support.design.widget.CoordinatorLayout>
