@@ -1,16 +1,25 @@
 package tk.sanchev.computervision;
 
+import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.hardware.Camera;
+import android.hardware.Camera.CameraInfo;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
@@ -23,6 +32,7 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Rect;
 import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.objdetect.Objdetect;
@@ -32,7 +42,29 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class MainActivity extends AppCompatActivity implements CvCameraViewListener2 {
+public class MainActivity extends AppCompatActivity implements CvCameraViewListener2, OnClickListener {
+
+    // A tag for log output.
+    private static final String TAG = "SmileOCV";
+    // A key for storing the index of the active camera.
+    private static final String STATE_CAMERA_INDEX = "cameraIndex";
+    // The index of the active camera.
+    private int mCameraIndex;
+    // Whether the active camera is front-facing.
+    // If so, the camera view should be mirrored.
+    private boolean mIsCameraFrontFacing;
+    // The number of cameras on the device.
+    private int mNumCameras;
+    // The camera view.
+    private CameraBridgeViewBase mCameraView;
+    // Whether the next camera frame should be saved as a photo.
+    private boolean mIsPhotoPending;
+    // A matrix that is used when saving photos.
+    private Mat mBgr;
+    // Whether an asynchronous menu action is in progress.
+    // If so, menu interaction should be disabled.
+    private boolean mIsMenuLocked;
+
     private CameraBridgeViewBase mOpenCvCameraView;
     private int absoluteFaceSize;
     private CascadeClassifier faceCascadeOne;
@@ -46,6 +78,45 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         System.loadLibrary("opencv_java3");
     }
 
+    //Activity methods start
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        if (savedInstanceState != null) {
+            mCameraIndex = savedInstanceState.getInt(STATE_CAMERA_INDEX, 0);
+        } else {
+            mCameraIndex = 0;
+        }
+
+        CameraInfo cameraInfo = new CameraInfo();
+        Camera.getCameraInfo(mCameraIndex, cameraInfo);
+        mIsCameraFrontFacing = (cameraInfo.facing == CameraInfo.CAMERA_FACING_FRONT);
+        mNumCameras = Camera.getNumberOfCameras();
+
+        setContentView(R.layout.activity_main);
+
+        mCameraView = (CameraBridgeViewBase) findViewById(R.id.view);
+        mCameraView.setCameraIndex(mCameraIndex);
+        mCameraView.setCvCameraViewListener(this);
+        mCameraView.enableView();
+        mCameraView.setVisibility(View.VISIBLE);
+
+        if (mNumCameras > 1) {
+            FloatingActionButton fabFlipCam = (FloatingActionButton) findViewById(R.id.fabFlipCam);
+            fabFlipCam.setOnClickListener(this);
+            fabFlipCam.setVisibility(View.VISIBLE);
+        }
+
+        FloatingActionButton fabPhoto = (FloatingActionButton) findViewById(R.id.fabPhoto);
+        fabPhoto.setOnClickListener(this);
+
+        mBgr = new Mat();
+    }
+
+    /*
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -104,39 +175,62 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         });
         //Сделать фото END
     }
+    */
 
-    private void checkIsCurrentCameraFront() {
-        Camera.CameraInfo currentCameraInfo = new Camera.CameraInfo();
-        Camera.getCameraInfo(currentCameraIngex, currentCameraInfo);
-        isCurrentCameraFront = (currentCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT);
+    @Override
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
+        savedInstanceState.putInt(STATE_CAMERA_INDEX, mCameraIndex);
+        super.onSaveInstanceState(savedInstanceState);
     }
 
     @Override
-    public void onPause() {
+    protected void onPause() {
+        if (mCameraView != null)
+            mCameraView.disableView();
         super.onPause();
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
     }
 
     @Override
-    public void onResume() {
+    protected void onResume() {
         super.onResume();
         OpenCVLoader.initDebug();
-        mOpenCvCameraView.enableView();
+        mCameraView.enableView();
+        mIsMenuLocked = false;
     }
 
-    public void onDestroy() {
+    @Override
+    protected void onDestroy() {
+        if (mCameraView != null)
+            mCameraView.disableView();
         super.onDestroy();
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
     }
+    //Activity methods end
 
+    //CvCameraViewListener2 methods start
+    @Override
     public void onCameraViewStarted(int width, int height) {
     }
 
+    @Override
     public void onCameraViewStopped() {
     }
 
+    @Override
+    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        Mat result = inputFrame.gray();
+
+        if (mIsCameraFrontFacing)
+            Core.flip(result, result, 1);
+
+        if (mIsPhotoPending) {
+            mIsPhotoPending = false;
+            takePhoto(result);
+        }
+
+        return result;
+    }
+
+    /*
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
         Mat result = inputFrame.rgba();
         if (isCurrentCameraFront) //зеркальное отоброжение входного кадра
@@ -167,6 +261,41 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         }
         return result;
     }
+    */
+    //CvCameraViewListener2 methods end
+
+    //OnClickListener methods start
+    @Override
+    public void onClick(View v) {
+        if (mIsMenuLocked) {
+            return;
+        }
+        switch (v.getId()) {
+            case R.id.fabFlipCam:
+                mIsMenuLocked = true;
+                // With another camera index, recreate the activity.
+                mCameraIndex++;
+                if (mCameraIndex == mNumCameras) {
+                    mCameraIndex = 0;
+                }
+                recreate();
+                return;
+            case R.id.fabPhoto:
+                mIsMenuLocked = true;
+                // Next frame, take the photo.
+                mIsPhotoPending = true;
+                return;
+            default:
+        }
+    }
+    //OnClickListener methods end
+
+    //Smile methods start
+    private void checkIsCurrentCameraFront() {
+        Camera.CameraInfo currentCameraInfo = new Camera.CameraInfo();
+        Camera.getCameraInfo(currentCameraIngex, currentCameraInfo);
+        isCurrentCameraFront = (currentCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT);
+    }
 
     private CascadeClassifier newCascadeClassifier(String file) {
         try {
@@ -190,4 +319,72 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         }
         return null;
     }
+
+    private void takePhoto(Mat result) {
+        //Determinate the path and metadata for the photo
+        final long currentTime = System.currentTimeMillis();
+        final String appName = getString(R.string.app_name);
+        final String galeryPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString();
+        final String albumPath = galeryPath + "/" + appName;
+        final String photoPath = albumPath + "/" + currentTime + ".png";
+        final ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.DATA, photoPath);
+        values.put(MediaStore.Images.Media.MIME_TYPE, LabActivity.PHOTO_MIME_TYPE);
+        values.put(MediaStore.Images.Media.TITLE, appName);
+        values.put(MediaStore.Images.Media.DESCRIPTION, appName);
+        values.put(MediaStore.Images.Media.DATE_TAKEN, currentTime);
+
+        //Ensure that the album directory exist
+        File album = new File(albumPath);
+        if (!album.isDirectory() && !album.mkdirs()) {
+            Log.e(TAG, "Failed to create album directory at " + albumPath);
+            onTakePhotoFailed();
+            return;
+        }
+
+        //Try to create the photo
+        Imgproc.cvtColor(result, mBgr, Imgproc.COLOR_GRAY2BGR, 3);
+        if (!Imgcodecs.imwrite(photoPath, mBgr)) {
+            Log.e(TAG, "Failed to save photo to " + photoPath);
+            onTakePhotoFailed();
+        }
+        Log.d(TAG, "Photo saved successfully to " + photoPath);
+
+        //Try to insert the photo into MediaStore
+        Uri uri;
+        try {
+            uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        } catch (final Exception e) {
+            Log.e(TAG, "Failed to insert photo into MediaStore");
+            e.printStackTrace();
+
+            //Since the insertion failed, delete the photo
+            File photo = new File(photoPath);
+            if (!photo.delete())
+                Log.e(TAG, "Failed to delete non-inserted photo");
+
+            onTakePhotoFailed();
+            return;
+        }
+        Log.d(TAG, "Photo inserted successfully into MediaStore");
+
+        //Open photo in LabActivity
+        final Intent intent = new Intent(this, LabActivity.class);
+        intent.putExtra(LabActivity.EXTRA_PHOTO_URI, uri);
+        intent.putExtra(LabActivity.EXTRA_PHOTO_DATA_PATH, photoPath);
+        startActivity(intent);
+    }
+
+    private void onTakePhotoFailed() {
+        mIsMenuLocked = false;
+
+        final String errorMessage = getString(R.string.photo_error_message);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    //Smile methods end
 }

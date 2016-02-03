@@ -16,17 +16,17 @@
         android:layout_gravity="bottom|end">
 
         <android.support.design.widget.FloatingActionButton
-            android:id="@+id/photo"
+            android:id="@+id/fabPhoto"
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_margin="@dimen/fab_margin"
             android:src="@mipmap/ic_launcher" />
 
         <android.support.design.widget.FloatingActionButton
-            android:id="@+id/fab"
+            android:id="@+id/fabFlipCam"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:layout_below="@id/photo"
+            android:layout_below="@id/fabPhoto"
             android:layout_margin="@dimen/fab_margin"
             android:src="@mipmap/ic_flipcam"
             android:visibility="gone" />
