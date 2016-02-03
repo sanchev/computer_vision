@@ -82,7 +82,6 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (savedInstanceState != null) {
@@ -90,6 +89,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         } else {
             mCameraIndex = 0;
         }
+
+        assetManager = getAssets();
+        faceCascadeOne = newCascadeClassifier("lbpcascade_frontalface.xml");
 
         CameraInfo cameraInfo = new CameraInfo();
         Camera.getCameraInfo(mCameraIndex, cameraInfo);
@@ -114,45 +116,6 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         fabPhoto.setOnClickListener(this);
 
         mBgr = new Mat();
-    }
-
-    /*
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        assetManager = getAssets();
-        faceCascadeOne = newCascadeClassifier("lbpcascade_frontalface.xml");
-
-        setContentView(R.layout.activity_main);
-
-        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.view);
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-
-        //Инициализация камер START
-        int numberOfCameras = Camera.getNumberOfCameras();
-        if (numberOfCameras >= 1) {
-            currentCameraIngex = 0;
-            checkIsCurrentCameraFront();
-            if (numberOfCameras > 1) {
-                fab.setVisibility(View.VISIBLE);
-                fab.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        currentCameraIngex = currentCameraIngex ^ 1; //bitwise not operation to flip 1 to 0 and vice versa
-                        checkIsCurrentCameraFront();
-                        mOpenCvCameraView.disableView();
-                        mOpenCvCameraView.setCameraIndex(currentCameraIngex);
-                        mOpenCvCameraView.enableView();
-                    }
-                });
-            }
-        }
-        mOpenCvCameraView.setCameraIndex(currentCameraIngex);
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-        mOpenCvCameraView.setCvCameraViewListener(this);
-        //Инициализация камер END
 
         //Инициализация EMOJI START
         Bitmap bitmapEmoji = BitmapFactory.decodeResource(getResources(), R.drawable.emoji);
@@ -164,18 +127,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         matMask = new Mat(bitmapMask.getWidth(), bitmapMask.getHeight(), CvType.CV_8UC3);
         Utils.bitmapToMat(bitmapMask, matMask);
         //Инициализация EMOJI END
-
-        //Сделать фото START
-        FloatingActionButton photo = (FloatingActionButton) findViewById(R.id.photo);
-        photo.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                //реализовать снимок
-            }
-        });
-        //Сделать фото END
     }
-    */
 
     @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
@@ -217,29 +169,15 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Mat result = inputFrame.gray();
-
-        if (mIsCameraFrontFacing)
-            Core.flip(result, result, 1);
-
-        if (mIsPhotoPending) {
-            mIsPhotoPending = false;
-            takePhoto(result);
-        }
-
-        return result;
-    }
-
-    /*
-    public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
         Mat result = inputFrame.rgba();
-        if (isCurrentCameraFront) //зеркальное отоброжение входного кадра
-            Core.flip(result, result, 1);
 
         Mat grayFrame = inputFrame.gray();
-        if (isCurrentCameraFront) //зеркальное отоброжение входного кадра
-            Core.flip(grayFrame, grayFrame, 1);
         Imgproc.equalizeHist(grayFrame, grayFrame);
+
+        if (mIsCameraFrontFacing) {
+            Core.flip(result, result, 1);
+            Core.flip(grayFrame, grayFrame, 1);
+        }
 
         if (this.absoluteFaceSize == 0) {
             int height = grayFrame.rows();
@@ -259,9 +197,14 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             Imgproc.resize(matMask, resizedMask, submat.size());
             resizedEmoji.copyTo(submat, resizedMask);
         }
+
+        if (mIsPhotoPending) {
+            mIsPhotoPending = false;
+            takePhoto(result);
+        }
+
         return result;
     }
-    */
     //CvCameraViewListener2 methods end
 
     //OnClickListener methods start
@@ -343,7 +286,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         }
 
         //Try to create the photo
-        Imgproc.cvtColor(result, mBgr, Imgproc.COLOR_GRAY2BGR, 3);
+        Imgproc.cvtColor(result, mBgr, Imgproc.COLOR_RGB2BGR, 3);
         if (!Imgcodecs.imwrite(photoPath, mBgr)) {
             Log.e(TAG, "Failed to save photo to " + photoPath);
             onTakePhotoFailed();

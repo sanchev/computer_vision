@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Smile</string>
+    <string name="delete">Удалить</string>
+    <string name="photo_delete_prompt_message">Это фото сохранено в вашей Галереи. Вы хотите удалить его?</string>
+    <string name="photo_delete_prompt_title">Удалить фото?</string>
+    <string name="photo_edit_chooser_title">Редактировать фото с помощью&#8230;</string>
+    <string name="photo_error_message">Фото не сохранено</string>
+    <string name="photo_send_chooser_title">Поделиться фотос помощью&#8230;</string>
+    <string name="photo_send_extra_subject">Мой фото из Smile</string>
+    <string name="photo_send_extra_text">Зацени мое фото из Smile!</string>
+</resources>
