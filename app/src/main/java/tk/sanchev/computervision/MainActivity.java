@@ -15,14 +15,12 @@ import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
 import android.widget.Toast;
 
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -65,11 +63,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     // If so, menu interaction should be disabled.
     private boolean mIsMenuLocked;
 
-    private CameraBridgeViewBase mOpenCvCameraView;
     private int absoluteFaceSize;
     private CascadeClassifier faceCascadeOne;
-    private int currentCameraIngex = -1;
-    private boolean isCurrentCameraFront = false;
+
     private Mat matEmoji;
     private Mat matMask;
     AssetManager assetManager;
@@ -119,13 +115,15 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         //Инициализация EMOJI START
         Bitmap bitmapEmoji = BitmapFactory.decodeResource(getResources(), R.drawable.emoji);
-        Bitmap bitmapMask = BitmapFactory.decodeResource(getResources(), R.drawable.mask);
 
         matEmoji = new Mat(bitmapEmoji.getWidth(), bitmapEmoji.getHeight(), CvType.CV_8UC3);
         Utils.bitmapToMat(bitmapEmoji, matEmoji);
 
-        matMask = new Mat(bitmapMask.getWidth(), bitmapMask.getHeight(), CvType.CV_8UC3);
-        Utils.bitmapToMat(bitmapMask, matMask);
+        try {
+            matMask = Utils.loadResource(this, R.drawable.mask);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         //Инициализация EMOJI END
     }
 
@@ -234,12 +232,6 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     //OnClickListener methods end
 
     //Smile methods start
-    private void checkIsCurrentCameraFront() {
-        Camera.CameraInfo currentCameraInfo = new Camera.CameraInfo();
-        Camera.getCameraInfo(currentCameraIngex, currentCameraInfo);
-        isCurrentCameraFront = (currentCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT);
-    }
-
     private CascadeClassifier newCascadeClassifier(String file) {
         try {
             InputStream is = assetManager.open(file);
